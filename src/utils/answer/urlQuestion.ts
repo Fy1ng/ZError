@@ -2,8 +2,8 @@ export type UrlQuestionMode = 'open' | 'single' | 'multiple' | 'judgement'
 
 const LETTER_LABEL = /^\s*([A-Za-z])[\.、．]\s*(.*)$/
 const NUMBER_LABEL = /^\s*(\d+)[\.、．]\s*(.*)$/
-/** 行首形如「0.3」「1、5」的数字串是小数/数值内容，不是「编号.内容」 */
-const LEADING_DECIMAL = /^\d+[\.、．]\d/
+/** 行首形如「0.3」「1．5」的数字串是小数/数值内容，不是「编号.内容」 */
+const LEADING_DECIMAL = /^\d+[\.．]\d/
 
 /** 从选项文本中解析带标签的选项块（支持块内换行） */
 const parseLabeledOptionBlocks = (optionsStr: string): string[] => {
