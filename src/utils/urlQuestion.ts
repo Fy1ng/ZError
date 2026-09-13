@@ -2,6 +2,8 @@ export type UrlQuestionMode = 'open' | 'single' | 'multiple' | 'judgement'
 
 const LETTER_LABEL = /^\s*([A-Za-z])[\.、．]\s*(.*)$/
 const NUMBER_LABEL = /^\s*(\d+)[\.、．]\s*(.*)$/
+/** 行首形如「0.3」「1、5」的数字串是小数/数值内容，不是「编号.内容」 */
+const LEADING_DECIMAL = /^\d+[\.、．]\d/
 
 /** 从选项文本中解析带标签的选项块（支持块内换行） */
 const parseLabeledOptionBlocks = (optionsStr: string): string[] => {
@@ -11,10 +13,12 @@ const parseLabeledOptionBlocks = (optionsStr: string): string[] => {
   let letterCurrent: string[] | null = null
   let numberCurrent: string[] | null = null
   let letterCount = 0
-  let numberCount = 0
+  const numberLabels: number[] = []
 
   for (const rawLine of lines) {
     const line = rawLine.trim()
+    // 小数行（0.3 等）不是编号行，也不并入任何选项块
+    if (LEADING_DECIMAL.test(line)) continue
     const letterMatch = line.match(LETTER_LABEL)
     if (letterMatch) {
       if (letterCurrent) {
@@ -38,7 +42,7 @@ const parseLabeledOptionBlocks = (optionsStr: string): string[] => {
         const text = numberCurrent.join('\n').trim()
         if (text) numberBlocks.push(text)
       }
-      numberCount += 1
+      numberLabels.push(Number(numberMatch[1]))
       numberCurrent = [numberMatch[2] || '']
       continue
     }
@@ -62,7 +66,10 @@ const parseLabeledOptionBlocks = (optionsStr: string): string[] => {
   }
 
   if (letterCount >= 2 && letterBlocks.length >= 2) return letterBlocks
-  if (numberCount >= 2 && numberBlocks.length >= 2) return numberBlocks
+  // 数字编号须构成 1,2,3… 连续序列；「0,0,0,0」这类（0.3 被误拆）不是编号
+  const isSequentialNumberLabels =
+    numberLabels.length >= 2 && numberLabels.every((n, i) => n === i + 1)
+  if (isSequentialNumberLabels && numberBlocks.length >= 2) return numberBlocks
   return []
 }
 
@@ -73,7 +80,11 @@ const parseLineFallbackOptions = (optionsStr: string): string[] => {
     .split('\n')
     .map(l => l.trim())
     .filter(Boolean)
-    .map(line => line.replace(/^[A-Za-z\d]+[\.、．]\s*/, '').trim() || line)
+    .map(line => {
+      // 「0.3 千克」这类数字+点+数字开头的小数不是编号，原样保留
+      if (LEADING_DECIMAL.test(line)) return line
+      return line.replace(/^[A-Za-z\d]+[\.、．\s]*/, '').trim() || line
+    })
 }
 
 /**
