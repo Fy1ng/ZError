@@ -13,12 +13,10 @@ const parseLabeledOptionBlocks = (optionsStr: string): string[] => {
   let letterCurrent: string[] | null = null
   let numberCurrent: string[] | null = null
   let letterCount = 0
-  const numberLabels: number[] = []
+  let numberCount = 0
 
   for (const rawLine of lines) {
     const line = rawLine.trim()
-    // 小数行（0.3 等）不是编号行，也不并入任何选项块
-    if (LEADING_DECIMAL.test(line)) continue
     const letterMatch = line.match(LETTER_LABEL)
     if (letterMatch) {
       if (letterCurrent) {
@@ -36,13 +34,14 @@ const parseLabeledOptionBlocks = (optionsStr: string): string[] => {
       continue
     }
 
-    const numberMatch = line.match(NUMBER_LABEL)
+    // 小数不是编号；已有标签块时仍需把这一行追加为选项正文。
+    const numberMatch = LEADING_DECIMAL.test(line) ? null : line.match(NUMBER_LABEL)
     if (numberMatch && !letterCurrent) {
       if (numberCurrent) {
         const text = numberCurrent.join('\n').trim()
         if (text) numberBlocks.push(text)
       }
-      numberLabels.push(Number(numberMatch[1]))
+      numberCount += 1
       numberCurrent = [numberMatch[2] || '']
       continue
     }
@@ -66,10 +65,7 @@ const parseLabeledOptionBlocks = (optionsStr: string): string[] => {
   }
 
   if (letterCount >= 2 && letterBlocks.length >= 2) return letterBlocks
-  // 数字编号须构成 1,2,3… 连续序列；「0,0,0,0」这类（0.3 被误拆）不是编号
-  const isSequentialNumberLabels =
-    numberLabels.length >= 2 && numberLabels.every((n, i) => n === i + 1)
-  if (isSequentialNumberLabels && numberBlocks.length >= 2) return numberBlocks
+  if (numberCount >= 2 && numberBlocks.length >= 2) return numberBlocks
   return []
 }
 
@@ -83,7 +79,7 @@ const parseLineFallbackOptions = (optionsStr: string): string[] => {
     .map(line => {
       // 「0.3 千克」这类数字+点+数字开头的小数不是编号，原样保留
       if (LEADING_DECIMAL.test(line)) return line
-      return line.replace(/^[A-Za-z\d]+[\.、．\s]*/, '').trim() || line
+      return line.replace(/^[A-Za-z\d]+[\.、．]\s*/, '').trim() || line
     })
 }
 
